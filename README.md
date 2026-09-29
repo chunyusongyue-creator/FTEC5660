@@ -48,6 +48,49 @@ DeepSeek Flash model. JPEG, PNG, GIF, and WebP inputs are accepted by the
 homework runner.
 
 
-## Homework 1 solution: 
-> to students: please fill your solution description here.
 
+## Homework 1 solution:
+
+### Chain Design
+
+```mermaid
+flowchart TD
+    A["🧾 Receipt Image"]
+
+    A --> B["① Extractor<br/>final_payment<br/>subtotal<br/>discounts"]
+    A --> C["② Blind Independent Reviewer<br/>final_payment<br/>subtotal<br/>discounts<br/>without_discount"]
+
+    B --> D{"Do both independent<br/>results agree?"}
+    C --> D
+
+    D -- "Yes" --> E["Accept validated result"]
+
+    D -- "No / one pass fails" --> F["③ Judge<br/>re-check original receipt<br/>final_payment<br/>subtotal<br/>discounts<br/>without_discount"]
+
+    A --> F
+
+    E --> G["Final receipt result"]
+    F --> G
+
+    G --> H["Python Decimal Aggregation"]
+
+    H --> I["Query 1<br/>Sum validated final_payment"]
+    H --> J["Query 2<br/>Sum subtotal + discounts<br/>Exclude rounding"]
+
+    I --> K["💰 Final HKD Answers"]
+    J --> K
+
+    classDef input fill:#eef4ff,stroke:#4a6fa5,stroke-width:2px,color:#111;
+    classDef agent fill:#f3efff,stroke:#7251b5,stroke-width:2px,color:#111;
+    classDef decision fill:#fff4d6,stroke:#c28b00,stroke-width:2px,color:#111;
+    classDef process fill:#eaf7ee,stroke:#3f8f5f,stroke-width:2px,color:#111;
+    classDef output fill:#fff0f3,stroke:#b85c72,stroke-width:2px,color:#111;
+
+    class A input;
+    class B,C,F agent;
+    class D decision;
+    class E,G,H,I,J process;
+    class K output;
+```
+
+My solution uses a multi-stage LangChain pipeline with the required `deepseek-v4-flash-vision-exp` vision model. For each receipt, an Extractor first identifies the `final_payment`, printed `subtotal`, and all qualifying discount amounts, while a Blind Independent Reviewer separately examines the original receipt image from scratch and independently extracts the same information together with `without_discount`. The two outputs are then compared for both queries. If they agree, the validated result is accepted directly; if they disagree or one pass cannot be validated, a Judge re-examines the original receipt and determines the final `final_payment`, `subtotal`, discounts, and `without_discount` values. The final receipt-level results are aggregated using Python `Decimal` arithmetic: Query 1 sums the validated `final_payment` values after rounding, while Query 2 sums `subtotal + all qualifying discounts` and excludes rounding adjustments. This design provides independent verification and conditional recovery while keeping the final response for each query as a single HKD amount.
